@@ -52,18 +52,31 @@ const createWishList = async (req, res) => {
   }
 };
 
-// Delete a wishlist
+// controllers/wishlistController.js
 const deleteWishList = async (req, res) => {
   const { id } = req.params;
+  console.log(`[deleteWishList] Attempting to delete wishlist with id=${id} for userId=${req.user.id}`);
+
   try {
-    const result = await Wishlist.destroy({ where: { id } });
-    if (result === 0) return res.status(404).send('Wishlist not found');
+    // Only destroy if the wishlist belongs to the logged-in user
+    const result = await Wishlist.destroy({
+      where: { id, userId: req.user.id },
+    });
+
+    // If no row was deleted, return 404
+    if (result === 0) {
+      console.error(`[deleteWishList] No wishlist found (or not owned) for id=${id}, userId=${req.user.id}`);
+      return res.status(404).send('Wishlist not found');
+    }
+
+    console.log(`[deleteWishList] Wishlist with id=${id} was successfully deleted.`);
     res.status(200).send('Wishlist deleted');
   } catch (error) {
     console.error('[deleteWishList] Error deleting wishlist:', error);
     res.status(500).send('Error deleting wishlist');
   }
 };
+
 
 module.exports = {
   getWishLists,

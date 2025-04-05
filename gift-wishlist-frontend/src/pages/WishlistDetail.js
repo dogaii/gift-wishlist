@@ -1,6 +1,23 @@
+// src/pages/WishlistDetail.js
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  Button,
+  TextField,
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Snackbar,
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import DoneIcon from '@mui/icons-material/Done'; // Check icon
 
 const WishlistDetail = () => {
   const { id } = useParams();
@@ -14,6 +31,7 @@ const WishlistDetail = () => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   useEffect(() => {
     fetchWishlistDetails();
@@ -30,22 +48,45 @@ const WishlistDetail = () => {
       const itemsRes = await axios.get('http://localhost:8080/api/items', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Filter items that match this wishlist ID
+      console.log('All items from backend:', itemsRes.data);
       const filteredItems = itemsRes.data.filter(
         (item) => item.wishlistId && String(item.wishlistId) === id
       );
+      console.log('Filtered items for wishlist', id, filteredItems);
       setItems(filteredItems);
+      
       setMessage('');
     } catch (err) {
       console.error('Error fetching wishlist details:', err.response?.data || err.message);
-      setMessage(
-        'Error fetching wishlist details: ' + (err.response?.data?.message || err.message)
-      );
+      setMessage('Error fetching wishlist details: ' + (err.response?.data?.message || err.message));
       setWishlist(null);
     } finally {
       setLoading(false);
     }
   };
+
+  // Updated function to toggle purchased status using isPurchased
+  const handleTogglePurchased = async (itemId, currentStatus) => {
+    console.log("handleTogglePurchased called with:", itemId, currentStatus);
+  
+    try {
+      // Right before the PUT call, log the URL
+      console.log("Using itemId in the URL =>", `http://localhost:8080/api/items/${itemId}`);
+  
+      await axios.put(
+        `http://localhost:8080/api/items/${itemId}`,
+        { isPurchased: !currentStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+  
+      fetchWishlistDetails();
+    } catch (err) {
+      console.error('Error updating purchased status:', err.response?.data || err.message);
+      setMessage('Error updating purchased status: ' + (err.response?.data?.message || err.message));
+      setSnackbarOpen(true);
+    }
+  };
+  
 
   const toggleForm = () => {
     setShowForm((prev) => !prev);
@@ -56,19 +97,17 @@ const WishlistDetail = () => {
     e.preventDefault();
     if (!newItemName.trim() || !newItemLink.trim()) {
       setMessage('Please provide a valid item name and link.');
+      setSnackbarOpen(true);
       return;
     }
     try {
       await axios.post(
         'http://localhost:8080/api/items',
-        {
-          name: newItemName,
-          link: newItemLink,
-          wishlistId: id,
-        },
+        { name: newItemName, link: newItemLink, wishlistId: id },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage('Item added successfully!');
+      setSnackbarOpen(true);
       setNewItemName('');
       setNewItemLink('');
       setShowForm(false);
@@ -76,6 +115,7 @@ const WishlistDetail = () => {
     } catch (err) {
       console.error('Error creating item:', err.response?.data || err.message);
       setMessage('Error creating item: ' + (err.response?.data?.message || err.message));
+      setSnackbarOpen(true);
     }
   };
 
@@ -85,208 +125,139 @@ const WishlistDetail = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMessage('Item deleted successfully!');
+      setSnackbarOpen(true);
       fetchWishlistDetails();
     } catch (err) {
       console.error('Error deleting item:', err.response?.data || err.message);
       setMessage('Error deleting item: ' + (err.response?.data?.message || err.message));
+      setSnackbarOpen(true);
     }
   };
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <button onClick={() => navigate(-1)} style={styles.backButton}>
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Button variant="contained" onClick={() => navigate(-1)} sx={{ mb: 2 }}>
           &larr; Back
-        </button>
-        <p>Loading wishlist details...</p>
-      </div>
+        </Button>
+        <Typography>Loading wishlist details...</Typography>
+      </Container>
     );
   }
 
   if (!wishlist) {
     return (
-      <div style={styles.container}>
-        <button onClick={() => navigate(-1)} style={styles.backButton}>
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Button variant="contained" onClick={() => navigate(-1)} sx={{ mb: 2 }}>
           &larr; Back
-        </button>
-        <p>{message || 'Wishlist not found'}</p>
-      </div>
+        </Button>
+        <Typography>{message || 'Wishlist not found'}</Typography>
+      </Container>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <button onClick={() => navigate(-1)} style={styles.backButton}>
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Button variant="contained" onClick={() => navigate(-1)} sx={{ mb: 2 }}>
         &larr; Back
-      </button>
-      <h2 style={styles.heading}>{wishlist.name}</h2>
-      <p style={styles.subHeading}>User: {wishlist.userEmail}</p>
+      </Button>
+      <Typography variant="h4" gutterBottom>
+        {wishlist.name}
+      </Typography>
+      <Typography variant="subtitle1" gutterBottom>
+        User: {wishlist.userEmail}
+      </Typography>
 
-      {message && <div style={styles.message}>{message}</div>}
+      {message && (
+        <Typography variant="body1" color="error" sx={{ mb: 2 }}>
+          {message}
+        </Typography>
+      )}
 
-      <h3 style={styles.itemsHeading}>Items</h3>
-      <div style={styles.card}>
-        {items.length > 0 ? (
-          <ul style={styles.list}>
-            {items.map((item) => (
-              <li key={item.id} style={styles.listItem}>
-                <div style={{ flexGrow: 1 }}>
-                  <strong>{item.name}</strong>{' '}
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.link}
+      <Typography variant="h6" gutterBottom>
+        Items
+      </Typography>
+      <Card sx={{ mb: 2, backgroundColor: '#fafafa' }}>
+        <CardContent>
+          {items.length > 0 ? (
+            <List>
+              {items.map((item) => (
+                <ListItem key={item.id} divider>
+                  <ListItemText
+                    primary={
+                      <span style={{
+                        textDecoration: item.isPurchased ? 'line-through' : 'none',
+                        color: item.isPurchased ? 'gray' : 'inherit'
+                      }}>
+                        {item.name}
+                      </span>
+                    }
+                    secondary={item.isPurchased ? "Purchased" : item.link}
+                  />
+                  {/* Toggle Purchased Button */}
+                  <IconButton
+                    edge="end"
+                    onClick={() => handleTogglePurchased(item.id, item.isPurchased)}
                   >
-                    View Link
-                  </a>
-                </div>
-                <button
-                  onClick={() => handleDeleteItem(item.id)}
-                  style={styles.deleteButton}
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No items found for this wishlist.</p>
-        )}
-      </div>
+                    <DoneIcon color={item.isPurchased ? "success" : "disabled"} />
+                  </IconButton>
+                  <IconButton edge="end" onClick={() => handleDeleteItem(item.id)}>
+                    <DeleteIcon />
+                  </IconButton>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography>No items found for this wishlist.</Typography>
+          )}
+        </CardContent>
+      </Card>
 
-      <h3 style={styles.addItemHeading}>Add New Item</h3>
-      <button onClick={toggleForm} style={styles.showFormButton}>
+      <Typography variant="h6" gutterBottom>
+        Add New Item
+      </Typography>
+      <Button variant="contained" color="primary" onClick={toggleForm} sx={{ mb: 2 }}>
         {showForm ? 'Cancel' : 'Show Form'}
-      </button>
-
+      </Button>
       {showForm && (
-        <form onSubmit={handleCreateItem} style={styles.form}>
-          <input
-            type="text"
-            placeholder="Item Name"
+        <Box
+          component="form"
+          onSubmit={handleCreateItem}
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            maxWidth: '400px',
+          }}
+        >
+          <TextField
+            label="Item Name"
+            variant="outlined"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
             required
-            style={styles.input}
           />
-          <input
-            type="text"
-            placeholder="Item Link"
+          <TextField
+            label="Item Link"
+            variant="outlined"
             value={newItemLink}
             onChange={(e) => setNewItemLink(e.target.value)}
             required
-            style={styles.input}
           />
-          <button type="submit" style={styles.submitButton}>
+          <Button variant="contained" type="submit" color="secondary">
             Add Item
-          </button>
-        </form>
+          </Button>
+        </Box>
       )}
-    </div>
-  );
-};
 
-const styles = {
-  container: {
-    margin: '2rem',
-    fontFamily: 'Arial, sans-serif',
-  },
-  backButton: {
-    marginBottom: '1rem',
-    backgroundColor: '#e73827',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.5rem 1rem',
-    cursor: 'pointer',
-  },
-  heading: {
-    fontSize: '1.8rem',
-    marginBottom: '0.5rem',
-    color: '#333',
-  },
-  subHeading: {
-    marginBottom: '1rem',
-    color: '#555',
-  },
-  message: {
-    marginBottom: '1rem',
-    color: 'red',
-  },
-  itemsHeading: {
-    fontSize: '1.2rem',
-    marginBottom: '0.5rem',
-  },
-  card: {
-    padding: '1rem',
-    border: '1px solid #ccc',
-    borderRadius: '8px',
-    backgroundColor: '#fafafa',
-    marginBottom: '1rem',
-  },
-  list: {
-    listStyle: 'none',
-    paddingLeft: 0,
-    margin: 0,
-  },
-  listItem: {
-    marginBottom: '0.75rem',
-    display: 'flex',
-    alignItems: 'center',
-    borderBottom: '1px solid #eee',
-    paddingBottom: '0.5rem',
-  },
-  link: {
-    marginLeft: '0.5rem',
-    textDecoration: 'underline',
-    color: '#e73827',
-  },
-  deleteButton: {
-    backgroundColor: '#d9534f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.5rem 0.75rem',
-    cursor: 'pointer',
-    marginLeft: '1rem',
-  },
-  addItemHeading: {
-    fontSize: '1.2rem',
-    marginBottom: '0.5rem',
-  },
-  showFormButton: {
-    marginBottom: '1rem',
-    backgroundColor: '#e73827',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.75rem 1.25rem',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  form: {
-    marginTop: '1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    maxWidth: '400px',
-  },
-  input: {
-    padding: '0.5rem',
-    marginBottom: '0.5rem',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-  },
-  submitButton: {
-    backgroundColor: '#5cb85c',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.5rem 1rem',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    alignSelf: 'flex-start',
-  },
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        message={message}
+      />
+    </Container>
+  );
 };
 
 export default WishlistDetail;

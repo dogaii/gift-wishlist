@@ -1,17 +1,35 @@
+// src/pages/Dashboard.js
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import {
+  Container,
+  Typography,
+  Paper,
+  Button,
+  TextField,
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Snackbar,
+  Grid
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+// 1) Import an icon for the title
+import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 
 const Dashboard = () => {
   const [wishlists, setWishlists] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [newWishlistName, setNewWishlistName] = useState('');
   const [message, setMessage] = useState('');
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const token = localStorage.getItem('token');
 
   useEffect(() => {
     fetchWishlists();
-    // eslint-disable-next-line
   }, []);
 
   const fetchWishlists = async () => {
@@ -20,22 +38,22 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setWishlists(res.data);
-      setMessage('');
     } catch (err) {
       setMessage('Error fetching wishlists');
+      setSnackbarOpen(true);
     }
   };
 
   const toggleForm = () => {
     setShowForm(!showForm);
     setNewWishlistName('');
-    setMessage('');
   };
 
   const handleCreateWishlist = async (e) => {
     e.preventDefault();
     if (!newWishlistName.trim()) {
       setMessage('Please enter a valid wishlist name.');
+      setSnackbarOpen(true);
       return;
     }
     try {
@@ -45,11 +63,13 @@ const Dashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage('Wishlist created successfully!');
+      setSnackbarOpen(true);
       setNewWishlistName('');
       setShowForm(false);
       fetchWishlists();
     } catch (err) {
       setMessage('Error creating wishlist');
+      setSnackbarOpen(true);
     }
   };
 
@@ -59,141 +79,127 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMessage('Wishlist deleted successfully!');
+      setSnackbarOpen(true);
       fetchWishlists();
     } catch (err) {
       setMessage('Error deleting wishlist');
+      setSnackbarOpen(true);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>My Wishlists</h2>
+    <Container maxWidth="lg" sx={{ minHeight: '80vh' }}>
+      <Grid container sx={{ minHeight: '80vh' }}>
+        {/* Left column: Dashboard content */}
+        <Grid
+          item
+          xs={12}
+          md={6}
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            p: { xs: 2, md: 8 },
+          }}
+        >
+          <Paper
+            elevation={6}
+            sx={{
+              p: 4,
+              borderRadius: 2,
+              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              width: '100%',
+            }}
+          >
+            {/* 2) Add the icon & styling for the title */}
+            <Typography
+              variant="h4"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                color: '#e73827',           // matches your brand color
+                fontFamily: '"Dancing Script", cursive', // or your desired font
+                fontWeight: 700,
+                mb: 2
+              }}
+            >
+              <CardGiftcardIcon fontSize="large" />
+              My Wishlists
+            </Typography>
 
-      {message && <div style={styles.message}>{message}</div>}
+            {wishlists.length > 0 ? (
+              <List sx={{ mb: 2 }}>
+                {wishlists.map((wishlist) => (
+                  <ListItem
+                    key={wishlist.id}
+                    secondaryAction={
+                      <IconButton
+                        edge="end"
+                        onClick={() => handleDeleteWishlist(wishlist.id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    }
+                  >
+                    <ListItemText
+                      primary={
+                        <Link
+                          to={`/wishlist/${wishlist.id}`}
+                          style={{ textDecoration: 'none', color: '#e73827' }}
+                        >
+                          {wishlist.name}
+                        </Link>
+                      }
+                      secondary={wishlist.userEmail}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            ) : (
+              <Typography sx={{ mb: 2 }}>No wishlists found.</Typography>
+            )}
 
-      <div style={styles.card}>
-        {wishlists.length > 0 ? (
-          <ul style={styles.list}>
-            {wishlists.map((wishlist) => (
-              <li key={wishlist.id} style={styles.listItem}>
-                <Link to={`/wishlist/${wishlist.id}`} style={styles.link}>
-                  {wishlist.name} <span style={styles.email}>({wishlist.userEmail})</span>
-                </Link>
-                <button
-                  onClick={() => handleDeleteWishlist(wishlist.id)}
-                  style={styles.deleteButton}
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No wishlists found.</p>
-        )}
-      </div>
+            <Box textAlign="center" sx={{ mb: 2 }}>
+              <Button variant="contained" onClick={toggleForm}>
+                {showForm ? 'Cancel' : 'Create New Wishlist'}
+              </Button>
+            </Box>
 
-      <button onClick={toggleForm} style={styles.addButton}>
-        {showForm ? 'Cancel' : 'Create New Wishlist'}
-      </button>
+            {showForm && (
+              <Box
+                component="form"
+                onSubmit={handleCreateWishlist}
+                sx={{ display: 'flex', gap: 2, mb: 4 }}
+              >
+                <TextField
+                  label="Wishlist Name"
+                  variant="outlined"
+                  value={newWishlistName}
+                  onChange={(e) => setNewWishlistName(e.target.value)}
+                  required
+                  fullWidth
+                />
+                <Button variant="contained" type="submit" color="primary">
+                  Save
+                </Button>
+              </Box>
+            )}
+          </Paper>
+        </Grid>
 
-      {showForm && (
-        <form onSubmit={handleCreateWishlist} style={styles.form}>
-          <input
-            type="text"
-            placeholder="Wishlist Name"
-            value={newWishlistName}
-            onChange={(e) => setNewWishlistName(e.target.value)}
-            required
-            style={styles.input}
-          />
-          <button type="submit" style={styles.submitButton}>
-            Save
-          </button>
-        </form>
-      )}
-    </div>
+        {/* Right column: empty for background visibility */}
+        <Grid item xs={12} md={6} />
+      </Grid>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        message={message}
+      />
+    </Container>
   );
-};
-
-// Example inline styles for a more polished look
-const styles = {
-  container: {
-    margin: '2rem',
-    fontFamily: 'Arial, sans-serif',
-  },
-  heading: {
-    fontSize: '1.8rem',
-    marginBottom: '1rem',
-    color: '#333',
-  },
-  message: {
-    marginBottom: '1rem',
-    color: 'red',
-  },
-  card: {
-    padding: '1rem',
-    border: '1px solid #ccc',
-    borderRadius: '8px',
-    backgroundColor: '#fafafa',
-    marginBottom: '1rem',
-  },
-  list: {
-    listStyle: 'none',
-    paddingLeft: 0,
-  },
-  listItem: {
-    marginBottom: '0.75rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  link: {
-    textDecoration: 'none',
-    color: '#e73827',
-    fontWeight: 'bold',
-  },
-  email: {
-    fontWeight: 'normal',
-    fontSize: '0.9rem',
-    color: '#555',
-  },
-  deleteButton: {
-    marginLeft: '1rem',
-    backgroundColor: '#d9534f',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.5rem 0.75rem',
-    cursor: 'pointer',
-  },
-  addButton: {
-    backgroundColor: '#e73827',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.75rem 1.25rem',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  form: {
-    marginTop: '1rem',
-  },
-  input: {
-    padding: '0.5rem',
-    marginRight: '0.5rem',
-    borderRadius: '4px',
-    border: '1px solid #ccc',
-  },
-  submitButton: {
-    backgroundColor: '#5cb85c',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    padding: '0.5rem 1rem',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
 };
 
 export default Dashboard;
