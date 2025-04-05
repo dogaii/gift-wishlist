@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
-import WishlistDetail from './pages/WishlistDetail'; // <-- Import your detail component
+import WishlistDetail from './pages/WishlistDetail';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -21,7 +21,7 @@ function App() {
       <header className="header">
         <nav className="navbar">
           <ul className="nav-list">
-            {!token && (
+            {!token ? (
               <>
                 <li>
                   <Link to="/">Login</Link>
@@ -30,8 +30,7 @@ function App() {
                   <Link to="/register">Register</Link>
                 </li>
               </>
-            )}
-            {token && (
+            ) : (
               <>
                 <li>
                   <Link to="/dashboard">Dashboard</Link>
@@ -51,21 +50,21 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route
-            path="/dashboard"
+          <Route 
+            path="/dashboard" 
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            }
+            } 
           />
-          <Route
-            path="/wishlist/:id"
+          <Route 
+            path="/wishlist/:id" 
             element={
               <ProtectedRoute>
                 <WishlistDetail />
               </ProtectedRoute>
-            }
+            } 
           />
         </Routes>
       </main>

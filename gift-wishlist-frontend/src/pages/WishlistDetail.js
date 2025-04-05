@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
 const WishlistDetail = () => {
-  const { id } = useParams(); // wishlist ID
+  const { id } = useParams();
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
 
@@ -12,33 +12,46 @@ const WishlistDetail = () => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemLink, setNewItemLink] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     fetchWishlistDetails();
-    // eslint-disable-next-line
   }, [id]);
 
   const fetchWishlistDetails = async () => {
     try {
-      // (Optional) If you have an endpoint like GET /api/wishlists/:id:
+      setLoading(true);
       const wishlistRes = await axios.get(`http://localhost:8080/api/wishlists/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setWishlist(wishlistRes.data);
 
-      // Get all items, filter by wishlistId
       const itemsRes = await axios.get('http://localhost:8080/api/items', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const filteredItems = itemsRes.data.filter((item) => item.wishlistId.toString() === id);
+      // Filter items that match this wishlist ID
+      const filteredItems = itemsRes.data.filter(
+        (item) => item.wishlistId && String(item.wishlistId) === id
+      );
       setItems(filteredItems);
+      setMessage('');
     } catch (err) {
       console.error('Error fetching wishlist details:', err.response?.data || err.message);
-      setMessage('Error fetching wishlist details');
+      setMessage(
+        'Error fetching wishlist details: ' + (err.response?.data?.message || err.message)
+      );
+      setWishlist(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add a new item to this wishlist
+  const toggleForm = () => {
+    setShowForm((prev) => !prev);
+    setMessage('');
+  };
+
   const handleCreateItem = async (e) => {
     e.preventDefault();
     if (!newItemName.trim() || !newItemLink.trim()) {
@@ -58,14 +71,14 @@ const WishlistDetail = () => {
       setMessage('Item added successfully!');
       setNewItemName('');
       setNewItemLink('');
-      fetchWishlistDetails(); // Refresh items
+      setShowForm(false);
+      fetchWishlistDetails();
     } catch (err) {
       console.error('Error creating item:', err.response?.data || err.message);
-      setMessage('Error creating item');
+      setMessage('Error creating item: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  // Delete an item
   const handleDeleteItem = async (itemId) => {
     try {
       await axios.delete(`http://localhost:8080/api/items/${itemId}`, {
@@ -75,14 +88,14 @@ const WishlistDetail = () => {
       fetchWishlistDetails();
     } catch (err) {
       console.error('Error deleting item:', err.response?.data || err.message);
-      setMessage('Error deleting item');
+      setMessage('Error deleting item: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  if (!wishlist) {
+  if (loading) {
     return (
-      <div style={{ margin: '2rem' }}>
-        <button onClick={() => navigate(-1)} style={{ marginBottom: '1rem' }}>
+      <div style={styles.container}>
+        <button onClick={() => navigate(-1)} style={styles.backButton}>
           &larr; Back
         </button>
         <p>Loading wishlist details...</p>
@@ -90,80 +103,190 @@ const WishlistDetail = () => {
     );
   }
 
+  if (!wishlist) {
+    return (
+      <div style={styles.container}>
+        <button onClick={() => navigate(-1)} style={styles.backButton}>
+          &larr; Back
+        </button>
+        <p>{message || 'Wishlist not found'}</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ margin: '2rem' }}>
-      <button onClick={() => navigate(-1)} style={{ marginBottom: '1rem' }}>
+    <div style={styles.container}>
+      <button onClick={() => navigate(-1)} style={styles.backButton}>
         &larr; Back
       </button>
-      <h2>{wishlist.name}</h2>
-      <p>User: {wishlist.userEmail}</p>
+      <h2 style={styles.heading}>{wishlist.name}</h2>
+      <p style={styles.subHeading}>User: {wishlist.userEmail}</p>
 
-      {message && <div style={{ marginBottom: '1rem', color: 'red' }}>{message}</div>}
+      {message && <div style={styles.message}>{message}</div>}
 
-      <h3>Items</h3>
-      {items.length > 0 ? (
-        <ul>
-          {items.map((item) => (
-            <li key={item.id} style={{ marginBottom: '0.5rem' }}>
-              {item.name}{' '}
-              <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '1rem' }}>
-                View Link
-              </a>
-              <button
-                onClick={() => handleDeleteItem(item.id)}
-                style={{
-                  marginLeft: '1rem',
-                  backgroundColor: 'red',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '0.25rem 0.5rem',
-                  cursor: 'pointer',
-                }}
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>No items found for this wishlist.</p>
+      <h3 style={styles.itemsHeading}>Items</h3>
+      <div style={styles.card}>
+        {items.length > 0 ? (
+          <ul style={styles.list}>
+            {items.map((item) => (
+              <li key={item.id} style={styles.listItem}>
+                <div style={{ flexGrow: 1 }}>
+                  <strong>{item.name}</strong>{' '}
+                  <a
+                    href={item.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.link}
+                  >
+                    View Link
+                  </a>
+                </div>
+                <button
+                  onClick={() => handleDeleteItem(item.id)}
+                  style={styles.deleteButton}
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No items found for this wishlist.</p>
+        )}
+      </div>
+
+      <h3 style={styles.addItemHeading}>Add New Item</h3>
+      <button onClick={toggleForm} style={styles.showFormButton}>
+        {showForm ? 'Cancel' : 'Show Form'}
+      </button>
+
+      {showForm && (
+        <form onSubmit={handleCreateItem} style={styles.form}>
+          <input
+            type="text"
+            placeholder="Item Name"
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            required
+            style={styles.input}
+          />
+          <input
+            type="text"
+            placeholder="Item Link"
+            value={newItemLink}
+            onChange={(e) => setNewItemLink(e.target.value)}
+            required
+            style={styles.input}
+          />
+          <button type="submit" style={styles.submitButton}>
+            Add Item
+          </button>
+        </form>
       )}
-
-      <h3>Add New Item</h3>
-      <form onSubmit={handleCreateItem}>
-        <input
-          type="text"
-          placeholder="Item Name"
-          value={newItemName}
-          onChange={(e) => setNewItemName(e.target.value)}
-          required
-          style={{ padding: '0.5rem', marginRight: '0.5rem' }}
-        />
-        <input
-          type="text"
-          placeholder="Item Link"
-          value={newItemLink}
-          onChange={(e) => setNewItemLink(e.target.value)}
-          required
-          style={{ padding: '0.5rem', marginRight: '0.5rem' }}
-        />
-        <button
-          type="submit"
-          style={{
-            backgroundColor: '#e73827',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            padding: '0.5rem 1rem',
-            cursor: 'pointer',
-          }}
-        >
-          Add Item
-        </button>
-      </form>
     </div>
   );
+};
+
+const styles = {
+  container: {
+    margin: '2rem',
+    fontFamily: 'Arial, sans-serif',
+  },
+  backButton: {
+    marginBottom: '1rem',
+    backgroundColor: '#e73827',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.5rem 1rem',
+    cursor: 'pointer',
+  },
+  heading: {
+    fontSize: '1.8rem',
+    marginBottom: '0.5rem',
+    color: '#333',
+  },
+  subHeading: {
+    marginBottom: '1rem',
+    color: '#555',
+  },
+  message: {
+    marginBottom: '1rem',
+    color: 'red',
+  },
+  itemsHeading: {
+    fontSize: '1.2rem',
+    marginBottom: '0.5rem',
+  },
+  card: {
+    padding: '1rem',
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+    backgroundColor: '#fafafa',
+    marginBottom: '1rem',
+  },
+  list: {
+    listStyle: 'none',
+    paddingLeft: 0,
+    margin: 0,
+  },
+  listItem: {
+    marginBottom: '0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    borderBottom: '1px solid #eee',
+    paddingBottom: '0.5rem',
+  },
+  link: {
+    marginLeft: '0.5rem',
+    textDecoration: 'underline',
+    color: '#e73827',
+  },
+  deleteButton: {
+    backgroundColor: '#d9534f',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.5rem 0.75rem',
+    cursor: 'pointer',
+    marginLeft: '1rem',
+  },
+  addItemHeading: {
+    fontSize: '1.2rem',
+    marginBottom: '0.5rem',
+  },
+  showFormButton: {
+    marginBottom: '1rem',
+    backgroundColor: '#e73827',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.75rem 1.25rem',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+  },
+  form: {
+    marginTop: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    maxWidth: '400px',
+  },
+  input: {
+    padding: '0.5rem',
+    marginBottom: '0.5rem',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
+  },
+  submitButton: {
+    backgroundColor: '#5cb85c',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.5rem 1rem',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    alignSelf: 'flex-start',
+  },
 };
 
 export default WishlistDetail;

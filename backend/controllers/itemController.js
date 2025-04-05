@@ -13,16 +13,17 @@ const getItems = async (req, res) => {
   }
 };
 
-// Create a new item
+// Create a new item only if the wishlist exists and belongs to the current user
 const createItem = async (req, res) => {
   const { name, link, wishlistId } = req.body;
   try {
-    // Check if the wishlist exists
-    const wishlist = await Wishlist.findByPk(wishlistId);
-    if (!wishlist) {
-      return res.status(404).send('Wishlist not found');
-    }
-    // Create the item with the provided name and link
+    // Verify that the wishlist exists and belongs to the logged-in user
+    const wishlist = await Wishlist.findOne({
+      where: { id: wishlistId, userId: req.user.id },
+    });
+    if (!wishlist) return res.status(404).send('Wishlist not found');
+
+    // Create the item
     const newItem = await Item.create({
       name,
       link,
@@ -41,9 +42,7 @@ const deleteItem = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await Item.destroy({ where: { id } });
-    if (result === 0) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
+    if (result === 0) return res.status(404).json({ message: 'Item not found' });
     res.status(200).json({ message: 'Item deleted successfully' });
   } catch (error) {
     console.error('Error deleting item:', error);

@@ -2,18 +2,14 @@
 const Wishlist = require('../models/Wishlist');
 const User = require('../models/User');
 
-// Get all wishlists
+// Get all wishlists for the logged-in user
 const getWishLists = async (req, res) => {
   try {
-    // Retrieve the current user based on the token (set in authMiddleware)
     const user = await User.findByPk(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    // Return only wishlists where userEmail matches the current user's email
-    const wishlists = await Wishlist.findAll({
-      where: { userEmail: user.email },
-    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Filter wishlists by the current user's email
+    const wishlists = await Wishlist.findAll({ where: { userEmail: user.email } });
     res.json(wishlists);
   } catch (error) {
     console.error('[wishlistController] Error fetching wishlists:', error);
@@ -21,14 +17,15 @@ const getWishLists = async (req, res) => {
   }
 };
 
-// Get a single wishlist by id
+// Get a single wishlist by id ensuring it belongs to the logged-in user
 const getWishlistById = async (req, res) => {
   const { id } = req.params;
   try {
-    const wishlist = await Wishlist.findByPk(id);
-    if (!wishlist) {
-      return res.status(404).json({ message: 'Wishlist not found' });
-    }
+    const wishlist = await Wishlist.findOne({
+      where: { id: id, userId: req.user.id },
+    });
+    if (!wishlist) return res.status(404).json({ message: 'Wishlist not found' });
+
     res.json(wishlist);
   } catch (error) {
     console.error('[wishlistController] Error fetching wishlist:', error);
@@ -36,16 +33,13 @@ const getWishlistById = async (req, res) => {
   }
 };
 
-// Create a new wishlist using the token to determine the user's email
+// Create a new wishlist using the token to determine the user's email and id
 const createWishList = async (req, res) => {
   const { name } = req.body;
   try {
-    // Retrieve the user from the token (req.user is set by authMiddleware)
     const user = await User.findByPk(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    // Create the wishlist with the user's email and userId automatically
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
     const newWishlist = await Wishlist.create({
       name,
       userEmail: user.email,
@@ -63,9 +57,7 @@ const deleteWishList = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await Wishlist.destroy({ where: { id } });
-    if (result === 0) {
-      return res.status(404).send('Wishlist not found');
-    }
+    if (result === 0) return res.status(404).send('Wishlist not found');
     res.status(200).send('Wishlist deleted');
   } catch (error) {
     console.error('[deleteWishList] Error deleting wishlist:', error);

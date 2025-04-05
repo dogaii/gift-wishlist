@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom'; // Import Link for navigation
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 
 const Dashboard = () => {
@@ -9,7 +9,6 @@ const Dashboard = () => {
   const [message, setMessage] = useState('');
   const token = localStorage.getItem('token');
 
-  // Fetch wishlists when component mounts
   useEffect(() => {
     fetchWishlists();
     // eslint-disable-next-line
@@ -20,136 +19,181 @@ const Dashboard = () => {
       const res = await axios.get('http://localhost:8080/api/wishlists', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log('[Dashboard] Fetched wishlists:', res.data);
       setWishlists(res.data);
       setMessage('');
     } catch (err) {
-      console.error('[Dashboard] Error fetching wishlists:', err.response?.data || err.message);
       setMessage('Error fetching wishlists');
     }
   };
 
-  // Toggle the "Create New Wishlist" form
   const toggleForm = () => {
     setShowForm(!showForm);
     setNewWishlistName('');
     setMessage('');
   };
 
-  // Handle form submission to create a new wishlist
   const handleCreateWishlist = async (e) => {
     e.preventDefault();
-    console.log('[Dashboard] Attempting to create wishlist with name:', newWishlistName);
     if (!newWishlistName.trim()) {
       setMessage('Please enter a valid wishlist name.');
       return;
     }
     try {
-      const res = await axios.post(
+      await axios.post(
         'http://localhost:8080/api/wishlists',
         { name: newWishlistName },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log('[Dashboard] Response from create wishlist:', res.data);
       setMessage('Wishlist created successfully!');
       setNewWishlistName('');
       setShowForm(false);
-      fetchWishlists(); // Refresh the list after creation
+      fetchWishlists();
     } catch (err) {
-      console.error('[Dashboard] Error creating wishlist:', err.response?.data || err.message);
-      setMessage(err.response?.data?.message || 'Error creating wishlist');
+      setMessage('Error creating wishlist');
     }
   };
 
-  // Handle deletion of a wishlist
   const handleDeleteWishlist = async (wishlistId) => {
     try {
       await axios.delete(`http://localhost:8080/api/wishlists/${wishlistId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMessage('Wishlist deleted successfully!');
-      fetchWishlists(); // Refresh the list after deletion
+      fetchWishlists();
     } catch (err) {
-      console.error('[Dashboard] Error deleting wishlist:', err.response?.data || err.message);
       setMessage('Error deleting wishlist');
     }
   };
 
   return (
-    <div style={{ marginLeft: '2rem', marginTop: '2rem' }}>
-      <h2>My Wishlists</h2>
-      {message && <div style={{ marginBottom: '1rem', color: 'red' }}>{message}</div>}
-      <ul>
-        {wishlists.map((wishlist) => (
-          <li key={wishlist.id} style={{ marginBottom: '0.5rem' }}>
-            {/* Wrap wishlist name in a Link to navigate to detail view */}
-            <Link
-              to={`/wishlist/${wishlist.id}`}
-              style={{ marginRight: '0.5rem', cursor: 'pointer', textDecoration: 'underline', color: '#e73827' }}
-              onClick={() => console.log(`[Dashboard] Clicked wishlist ${wishlist.id}`)}
-            >
-              {wishlist.name} - {wishlist.userEmail}
-            </Link>
-            <button
-              onClick={() => handleDeleteWishlist(wishlist.id)}
-              style={{
-                marginLeft: '1rem',
-                backgroundColor: 'red',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '0.25rem 0.5rem',
-                cursor: 'pointer',
-              }}
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+    <div style={styles.container}>
+      <h2 style={styles.heading}>My Wishlists</h2>
 
-      <button
-        onClick={toggleForm}
-        style={{
-          marginTop: '1rem',
-          backgroundColor: '#e73827',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          padding: '0.5rem 1rem',
-          cursor: 'pointer',
-        }}
-      >
+      {message && <div style={styles.message}>{message}</div>}
+
+      <div style={styles.card}>
+        {wishlists.length > 0 ? (
+          <ul style={styles.list}>
+            {wishlists.map((wishlist) => (
+              <li key={wishlist.id} style={styles.listItem}>
+                <Link to={`/wishlist/${wishlist.id}`} style={styles.link}>
+                  {wishlist.name} <span style={styles.email}>({wishlist.userEmail})</span>
+                </Link>
+                <button
+                  onClick={() => handleDeleteWishlist(wishlist.id)}
+                  style={styles.deleteButton}
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No wishlists found.</p>
+        )}
+      </div>
+
+      <button onClick={toggleForm} style={styles.addButton}>
         {showForm ? 'Cancel' : 'Create New Wishlist'}
       </button>
 
       {showForm && (
-        <form onSubmit={handleCreateWishlist} style={{ marginTop: '1rem' }}>
+        <form onSubmit={handleCreateWishlist} style={styles.form}>
           <input
             type="text"
             placeholder="Wishlist Name"
             value={newWishlistName}
             onChange={(e) => setNewWishlistName(e.target.value)}
             required
-            style={{ padding: '0.5rem', marginRight: '0.5rem' }}
+            style={styles.input}
           />
-          <button
-            type="submit"
-            style={{
-              backgroundColor: '#e73827',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '0.5rem 1rem',
-              cursor: 'pointer',
-            }}
-          >
+          <button type="submit" style={styles.submitButton}>
             Save
           </button>
         </form>
       )}
     </div>
   );
+};
+
+// Example inline styles for a more polished look
+const styles = {
+  container: {
+    margin: '2rem',
+    fontFamily: 'Arial, sans-serif',
+  },
+  heading: {
+    fontSize: '1.8rem',
+    marginBottom: '1rem',
+    color: '#333',
+  },
+  message: {
+    marginBottom: '1rem',
+    color: 'red',
+  },
+  card: {
+    padding: '1rem',
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+    backgroundColor: '#fafafa',
+    marginBottom: '1rem',
+  },
+  list: {
+    listStyle: 'none',
+    paddingLeft: 0,
+  },
+  listItem: {
+    marginBottom: '0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  link: {
+    textDecoration: 'none',
+    color: '#e73827',
+    fontWeight: 'bold',
+  },
+  email: {
+    fontWeight: 'normal',
+    fontSize: '0.9rem',
+    color: '#555',
+  },
+  deleteButton: {
+    marginLeft: '1rem',
+    backgroundColor: '#d9534f',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.5rem 0.75rem',
+    cursor: 'pointer',
+  },
+  addButton: {
+    backgroundColor: '#e73827',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.75rem 1.25rem',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+  },
+  form: {
+    marginTop: '1rem',
+  },
+  input: {
+    padding: '0.5rem',
+    marginRight: '0.5rem',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
+  },
+  submitButton: {
+    backgroundColor: '#5cb85c',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '0.5rem 1rem',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+  },
 };
 
 export default Dashboard;
